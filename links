@@ -1,0 +1,243 @@
+system commands: stty, locale, read
+
+
+############################################################################################################
+##	Introduction
+############################################################################################################
+
+= Clapp - Command Line Application =
+
+Clapp is an integrated set of tools made to simplify exposing PHP scripts to the command line (cli).
+
+== Clapp: Features ==
+
+=== Argument Parsing ===
+
+The Argument Parser respects the [http://www.gnu.org/software/libc/manual/html_node/Argument-Syntax.html Program Argument Syntax Conventions] specified by GNU / POSIX. Beyond that, some proprietary but widely used exentions include: 
+  * subcommands `clapputil upload -a -b -c`
+  * key/value pairs, e.g. `clapputil -a foo=bar`
+  * number of occurences, e.g. `clapputil -aaa -a -aa`
+  * accessing first/last/all values when multiple were specified, e.g. `clapputil -a value1 -a value2 -a value3`
+  * accessing undefined arguments
+
+=== Application Information Screens (--help and --version) ===
+
+The defined arguments are automatically rendered to an help screen. Information shown include argument name, value type, description. Arguments can be grouped. --help and --version arguments respect the [http://www.gnu.org/prep/standards/html_node/Command_002dLine-Interfaces.html Standards for Command Line Interfaces] defined by GNU.
+
+=== TTY Interaction ===
+
+On a TTY formatted (bold, underline, blink, …) and colored (foreground, background) text can be displayed (except for `vt100` and `xterm` terminals). CharacterControl (moving the cursor around) is available on nearly all terminals. This is specified in ECMA-48 and integrated in Clapp as a transparent wrapper. Also determining current cursor position and dimensions of the TTY are available. This feature requires POSIX functions (i.e. will not work on Windows), but will not break the code when not available.
+
+=== Character Transcoding / Charsets ===
+
+Clapp determines the charset used by the terminal and will automatically transcode data from IN > application > OUT, if the terminal and internal charsets are different. Transcoding is done via StreamFilters that attach to STDIN, STDOUT and are additionally exposed via an OutputBuffer to even enable `echo "foobar";`. This feature requires either [http://php.net/MBString MBString] or [http://php.net/iconv iconv], but will not break the code when not available. If neither is available, there simply won't be any character transcoding.
+
+=== Signal Handling ===
+
+Handle Signals, e.g. SIGINT, SIGTERM, SIGQUIT, SIGHUP how ever deemed necessary. This feature requires [http://php.net/pcntl PCNTL], but will not break the code when not available. If it is not available, a SIGINT will still interrupt the application, you just can't react on it.
+
+=== Utilities ===
+
+Currently Clapp offers an easily integratable ProgressBar and some simple Dialog functions. Maybe some contributions will enrich this package soon?
+
+
+== Runtime Requirements == 
+
+Clapp requires PHP5. Most features (TTY, Signal Handling, automatic character transcoding) will only work on linux boxes.
+
+=== Not required but recommended ===
+
+  * Either [http://php.net/MBString MBString] or [http://php.net/iconv iconv] for character transcoding.
+  * [http://php.net/pcntl PCNTL] for Signal Handling.
+  * [http://de.php.net/posix POSIX] for TTY access.
+
+If MBString is not available iconv will be tried. If neither of then is available no character transcoding will be performed.
+If PCNTL is not available the application will not be able to process signals (SIGINT, SIGTERM, ...).
+MBstring and PCNTL as well as iconv are recommendations. If the environment does not provide them, certain functionality will be (silently) passed over.
+If POSIX functions are not available, TTY is not accessible.
+
+
+
+############################################################################################################
+##	Argument Parser Details
+############################################################################################################
+
+= Clapp: Argument Parsing =
+
+Command Line Utilities usually offer basic configuration and command switches through arguments. GNU/POSIX define some standard conventions on argument syntax. Clapp implements these standards and makes some small extensions for convinience.
+
+== Argument Types ==
+
+Arguments are either Options (-a, --alpha) or Non-Options (strings not related to an option): `clapputil --option=value non-option`. Non-Options have no general meaning and are simply passed through to the application. Option-arguments, denoted by a single letter `-a` (key) or a character sequence `--alpha` (name), are one of the following types: flag, value, key/value. 
+
+There are 2 types of flag-arguments, FLAG and FLAGS. FLAG will accept the argument once, FlAGS will accept the argument multiple times. If -v was declared as FLAG, `clapputil -vv` would result in the parser throwing an exception. Flag-arguments do not expect, nor accept any values. If -a, -b and -c were declared FLAG(S) `clapputil -abc` would be treated as `clapputil -a -b -c`.
+
+There are 4 types of value-arguments, VALUE, VALUES (VALUE_ALL), VALUE_FIRST, VALUE_LAST. Value-arguments accept a value following the argument, but do not require to: `clapputil -a value --alpha=value -b`. As with FLAG a VALUE-argument will cause an exception if it was specified multiple times. VALUE_FIRST and VALUE_LAST return the respective value from a sequence, VALUE_ALL returns the whole sequence: `clapputil -a value1 -a value2 -a value3`. VALUE_FIRST would be "value1", VALUE_LAST would be "value3", VALUE_ALL would be ["value1","value2","value3"].
+
+Additionally the KEYVALUE and KEYVALUES types offer automatic parsing of the value component into "KEY=VALUE" parts. As with FLAG a KEYVALUE -argument will cause an exception if it was specified multiple times.
+
+Unlike most other argument parsers, clapp offers to parse undefined arguments. Meaning one can accept the flag -z although it wasn't registered. undefined arguments are FLAGS by default. Although the implementor is given this possibility, it should only be used for debugging purposes.
+
+== Descriptions and Data Types ==
+
+A description can be specified for each argument. For value- and keyvalue-arguments the expected data type can be specified as well. The key, name, description and expected-type make up the data-set for the automatic `--help` display.
+
+== Conflicts and Dependencies ==
+
+Some arguments may conflict other arguments. The -f option may have been specified to accept a filename that should be written to, as well as the -o option to state output should be written to STDOUT. The application can either write to the file -f or write to STDOUT -o. Thus the application may only accept either -f or -o. This is a conflict and will be handled automatically by the ClappArgumentParser.
+
+Some arguments may depend on other arguments. The -f option may have been specified to accep a filename that should be written to, as well as the -c option to state the output should be copied to the file -f. In this case -c depends on -f bein set. Dependencies are handled automatically by the ClappArgumentParser.
+
+== Subcommands ==
+
+Clapp supports subcommands in the way `svn` and `git` use them. The "master" application has no functionality of its own, but defines a set of commands to do the actual work. The first argument is treated as the subcommand switch. `clapputil subcmd -abc` would result in ClappArgumentParser checking if the subcommand "subcmd" has been registered. If so, argument parsing is turned over to that subcommand's argument parser. If the subcommand was not registered "subcmd" is treated as a regular non-option.
+
+== Examples ==
+
+Please see the following files in the clapp package:
+// TODO: examples
+
+== References ==
+* GNU [http://www.gnu.org/software/libc/manual/html_node/Argument-Syntax.html Program Argument Syntax Conventions]
+* GNU [http://www.gnu.org/prep/standards/html_node/Option-Table.html#Option-Table Argument Name Conventions]
+* Open Group [http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap12.html#tag_12_01c Utility Conventions]
+
+
+
+############################################################################################################
+##	Application Information Details (--help and --version)
+############################################################################################################
+
+= Clapp: Application Information Details =
+
+Command Line Utilities usually expose some information about themselves and their usage via the `--help` and `--version` arguments. The output of `--version` is regulated by GNU conventions, the output of `--help` is not. The help screen is formatted the way most help screens and man pages are.
+
+The `--help` and `--version` flags are automatically inserted into an applications argument definition if they weren't specified manually. Since the rendering of help and version shouldn't change from application to application, they are done by clapp - internally and automatically. An implementor may influence rendering by extending the appropriate classes `Clapp`, `ClappFormatHelp` and `ClappFormatVersion`.
+
+== Examples ==
+
+Please see the following files in the clapp package:
+// TODO: examples
+
+== References ==
+* GNU [http://www.gnu.org/prep/standards/html_node/Command_002dLine-Interfaces.html Standards for Command Line Interfaces]
+
+
+
+############################################################################################################
+##	TTY Interaction Details
+############################################################################################################
+
+= Clapp: TTY Interaction =
+
+Clapp offers an interface to the TTY. This is done without [http://php.net/readline GNU Readline] or [http://php.net/ncurses Ncurses]. The TTY interfaces offer functions for reading and writing to the TTY. ECMA-48 Colors and CharacterControl are available depending on the terminal in use.
+
+The TTY interaction heavily relies on the system commands `stty`, `locale` and `read`. They are available on any linux and Mac OS X but not on Windows.
+
+== TTY Detection ==
+
+The class `ClappTTY` offers functions for opening a socket to the TTY itself (not being STDIN/STDOUT!), determining the systems charset, determining the TTYs dimensions (rows and columns).
+
+`ClappTTY::io()` checks if both STDIN and STDOUT link to the TTY. This should be the implementor's first check, if the application is to be run in interactive mode (meaning user-input must be handled).
+
+== TTY Dimension Detection ==
+
+`ClappTTY::dimensions()` returns `array( 'rows' => 123, 'columns' => 123 )` or `array( 'rows' => null, 'columns' => null )` if the dimensions could not be determined. This method actually works with the output of the system command `stty -a` and will thus only work if STDIN and STDOUT are attached to the TTY. That means `echo "foobar" | clapputil.php` will not yield the dimensions of the TTY.
+
+== TTY Control and Format ==
+
+Most terminals support ANSI Escape Sequences (ECMA-48). Clapp offers 2 subsets of these sequences: control and format. Control allows to set cursor positions, clear lines, clear the whole screen, etc. These are the basic methods required for creating applications that continuously refresh (and overwrite) the displayed data. The interface for these functions can be obtained via `ClappTTY::control()`. If the terminal does not provide ECMA-48 support (or isn't a TTY at all) a dummy interface is returned. Thus applications won't break if run on unknown terminals. Character Control has been tested on the following terminals: ansi, dtterm, rxvt, vt52, vt100, vt102, xterm, xterm-color.
+
+Formatting of text is possible, too. The Escape Sequences are known as SGR - Select Graphic Rendition. The formatting functions can be optained via `ClappTTY::format()`. If the terminal does not provide SGR support (or isn't a TTY at all) a dummy interface is returned. Thus applications won't break if run on unknown terminals. Most terminals support this feature, exceptions are: vt100, xterm.
+
+== TTY Input ==
+
+Some applications might need interaction with the user. The class `ClappTTYInput` offers some methods to read single characters or whole lines of user-input right from STDIN. The user's input can be hidden (useful if you want the user to type in a password).
+
+== Examples ==
+
+Please see the following files in the clapp package:
+// TODO: examples
+
+== References ==
+* [http://www.linusakesson.net/programming/tty/index.php The TTY demystified]
+* [http://en.wikipedia.org/wiki/ANSI_escape_code#Codes ANSI Escape Sequences]
+
+
+
+############################################################################################################
+##	Character Transcoding Details
+############################################################################################################
+
+= Clapp: Character Transcoding =
+
+Clapp comes with a character transocding facility. The package determines the charsets of the running script and the attached TTY. It will then transparently decode all data from STDIN to match the applications internal charset. It also encodes all the output to STDOUT back to the TTY's charset. Note that this feature must be enabled manually via `ClappEncoding::attach()`.
+
+== Charset Detection ==
+
+The TTY's charset (external) is dermined using the system command `locale -k charmap`. Charset detection will only work on systems providing the `locale` utility (e.g. Windows does not). The external charset will default to ASCII. The internal charset is determined via `mb_internal_encoding()` or `iconv_get_encoding()` and defaults to UTF-8. Both internal and external charset can be set manually via `ClappEncoding::internal("UTF-16LE")` and `ClappEncoding::external("UTF-16LE")`.
+
+== Charset Transcoding ==
+
+Encoding and decoding strings can be done manually via `ClappEncoding::encode()` and `ClappEncoding::decode()`. Both methods use internal and external charsets, that were detected or set manually before.
+
+The en- and decoders are also registered as [http://php.net/stream_filter_append StreamFilters]. They can be easily activated via the `ClappEncoding::attach()` method. The filters are attached to the global STDIN and STDOUT FilePointers PHP natively defines.
+
+An OutputBuffer is also registered on activation. The OB pipes all data received via `echo` and `print` statements to the STDOUT pipe. This makes an integration extremely easy for implementors. The OB also detaches the StreamFilters from STDIN and STDOUT after it caught the END signal. The OB's detach call is vital, without it PHP will definitely segfault on exit (Bug #123123123).
+
+== Examples ==
+
+Please see the following files in the clapp package:
+// TODO: examples
+
+== References ==
+* PHP [http://php.net/manual/en/function.stream-filter-register.php Stream Filters]
+* PHP [http://php.net/manual/en/features.commandline.io-streams.php I/O Streams]
+
+
+
+############################################################################################################
+##	Signal Handling Details
+############################################################################################################
+
+= Clapp: Signal Handling =
+
+A Signal is a piece of information sent to an application telling it that e.g. some modem disconnected. GNU defines a set of [http://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html#Termination-Signals Termination Signals]. The PHP process running the script will catch any signals and act accordingly (read: stop execution). With `ClappSignals` (requiring [http://php.net/pcntl PCNTL]) the script can handle the signals itself. It is thus possible to properly exit the application instead of having it interrupted somewhere along execution. It is even possible to catch and ignore certain signals. A "Do you really want to abort?" dialog could be shown after the user signals an interruption (SIGINT, usually [command]+[c]).
+
+ClappSignal offers the methods `ClappSignals::startAtomic()` and `ClappSignals::endAtomic()`, which enables the implementor to make certain parts of the code ignore signals. The signals collected during an atomic phase are processed when `endAtomic()` is called, so a termination signal won't get lost.
+
+The use of ClappSignals is completely optional. Most implementors won't actually need this feature. But if you're creating a tool to be run as a daemon, it's a very wise idea to handle signals yourself. Most environments where your clapputil will be run in won't have the PCNTL pecl since it's rather special.
+
+== Examples ==
+
+Please see the following files in the clapp package:
+// TODO: examples
+
+== References ==
+* GNU [http://www.gnu.org/software/libc/manual/html_node/Program-Termination.html#Program-Termination Program Termination]
+
+
+
+############################################################################################################
+##	Utilities Details
+############################################################################################################
+
+= Clapp: Utilities =
+
+Clapp offers some utilities for TTY interaction. These utils are quite simple in nature but are easily integrated into existing applications.
+
+== Progress ==
+
+With `ClappProgress` an implementor can easily integrate a progress bar into his application. Since PHP is a single-threaded story, the progress should be redrawn by the application on every iteration.
+
+== Error Dialog ==
+
+With `ClappDialogError` an implementor can interactively display PHP errors and have the user decide to continue or abort the script's execution.
+
+== Examples ==
+
+Please see the following files in the clapp package:
+// TODO: examples
+
+
+

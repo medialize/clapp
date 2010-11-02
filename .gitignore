@@ -1,0 +1,10 @@
+
+# Ignore Mac Finder littering
+.DS_Store
+
+# ignore the docs
+docs
+docs.sh
+
+# ignore dev things
+tmp
