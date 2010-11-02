@@ -13,15 +13,17 @@ require_once( $_clappLibraryPath .'/argument/ClappArgumentUndefined.php' );
 class ClappArgument
 {
 	const NON_OPTION = 0;
-	const FLAG = 10; // will not accept values, thus -abc translates to -a -b -c, additionally exception for occurences > 1
-	const FLAGS = 11; // will not accept values, thus -abc translates to -a -b -c
-	const VALUE = 20; // exception for values > 1
-	const VALUE_FIRST = 21;
-	const VALUE_LAST = 22;
-	const VALUE_ALL = 23;
-	const VALUES = 23;
-	const KEYVALUES = 30;	// like VALUE_ALL but values are split by a delimiter into a (unqiue key) array
-	const KEYVALUES_ALL = 31; // like VALUE_ALL but values are split by a delimiter into an 2d array
+	const FLAG = 1; // will not accept values, thus -abc translates to -a -b -c, additionally exception for occurences > 1
+	const FLAGS = 2; // will not accept values, thus -abc translates to -a -b -c
+	const VALUE = 4; // exception for values > 1
+	const VALUE_FIRST = 8;
+	const VALUE_LAST = 16;
+	const VALUE_ALL = 32;
+	const VALUES = 64;
+	const KEYVALUES = 128;	// like VALUE_ALL but values are split by a delimiter into a (unqiue key) array
+	const KEYVALUES_ALL = 256; // like VALUE_ALL but values are split by a delimiter into an 2d array
+	
+	const REQUIRED = 512; // Required value
 	
 	protected $key = null;
 	protected $name = null;
@@ -40,13 +42,29 @@ class ClappArgument
 	
 	protected $keyvalueDelimiter = '=';
 	
-	public function __construct( $key=null, $name=null, $type=self::FLAGS )
+	public function __construct( $key=null, $name=null, $type=self::FLAGS, $desc=NULL, $expected=NULL )
 	{
 		$this->key = $key;
 		$this->name = $name;
 		
 		if( $key === null && $name === null )
 			throw new ClappException( 'Arguments must either have a key, a name or both!' );
+		
+		if( $type & self::REQUIRED )
+		{
+			$this->setMandatory();
+			$type = $type & ~self::REQUIRED;
+		}
+		
+		if( $desc !== NULL )
+		{
+			$this->setDescription( $desc );
+		}
+		
+		if ( $expected !== NULL )
+		{
+			$this->setExpected( $expected );
+		}
 		
 		$this->setType( $type );
 	}
